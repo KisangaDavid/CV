@@ -4,6 +4,8 @@ import numpy as np
 from scipy import ndimage
 import scipy.signal
 import scipy.io as sio
+from util import *
+import matplotlib.pyplot as plt
 
 def conv_2d(image, filt, mode='zero'):
    assert image.ndim == 2, 'image should be grayscale'
@@ -33,3 +35,9 @@ def sobel_gradients(img):
     dx = conv_2d(img, gx, mode='mirror')
     dy = conv_2d(img, gy, mode='mirror')
     return dx, dy
+
+image = load_image('data/69015.jpg')
+filter = np.array([[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1]])
+convoluted_img = conv_2d(image, filter, 'mirror')
+plt.figure(); plt.imshow(convoluted_img, cmap='gray')
+plt.show()

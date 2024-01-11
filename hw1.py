@@ -126,10 +126,28 @@ def conv_2d(image, filt, mode='zero'):
    assert image.ndim == 2, 'image should be grayscale'
    filt = np.atleast_2d(filt)
    ##########################################################################
-   # TODO: YOUR CODE HERE
-   raise NotImplementedError('conv_2d')
+   assert mode == 'zero' or mode == 'mirror', 'mode must be zero or mirror'
+
+   h_padding = filt.shape[1] // 2
+   v_padding =  filt.shape[0] // 2
+   new_image = np.zeros(image.shape)
+
+   if mode == 'zero':
+      padded_image = pad_border(image, wx=v_padding, wy=h_padding)
+   else: 
+      padded_image = mirror_border(image, wx=v_padding, wy=h_padding)
+
+   for x_idx in range(new_image.shape[1]):
+      x_idx = x_idx + h_padding
+      for y_idx in range(new_image.shape[0]):
+         y_idx = y_idx + v_padding
+         sub_img = padded_image[y_idx - v_padding: y_idx + v_padding + 1,
+                                x_idx - h_padding: x_idx + h_padding + 1]
+         filtered_pixel = np.sum((sub_img * filt))
+         new_image[y_idx - v_padding, x_idx - h_padding] = filtered_pixel
+         # calculate according to filter
    ##########################################################################
-   return result
+   return new_image
 
 """
    GAUSSIAN DENOISING (5 Points)
