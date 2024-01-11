@@ -179,9 +179,12 @@ def conv_2d(image, filt, mode='zero'):
 def denoise_gaussian(image, sigma = 1.0):
    ##########################################################################
    # TODO: YOUR CODE HERE
-   raise NotImplementedError('denoise_gaussian')
-   ##########################################################################
+   horiz_gaussian = gaussian_1d(sigma)
+   vert_gaussian = horiz_gaussian.T
+   img = conv_2d(image, horiz_gaussian, 'mirror')
+   img = conv_2d(img, vert_gaussian, 'mirror')
    return img
+   ##########################################################################
 
 """
     BILATERAL DENOISING (5 Points)

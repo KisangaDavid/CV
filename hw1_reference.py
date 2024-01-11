@@ -37,7 +37,8 @@ def sobel_gradients(img):
     return dx, dy
 
 image = load_image('data/69015.jpg')
-filter = np.array([[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1]])
-convoluted_img = conv_2d(image, filter, 'mirror')
-plt.figure(); plt.imshow(convoluted_img, cmap='gray')
+#filter = np.array([[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1]])
+#convoluted_img = conv_2d(image, filter, 'mirror')
+gaussian_img = denoise_gaussian(image, sigma = 4)
+plt.figure(); plt.imshow(gaussian_img, cmap='gray')
 plt.show()
