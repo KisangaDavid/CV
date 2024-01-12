@@ -88,6 +88,9 @@ def gaussian_1d(sigma = 1.0):
    g = np.atleast_2d(g)       # to multiplication by 1 / sqrt(2*pi*sigma^2) )
    return g
 
+def gaussian_for_color(intensity_dif, sigma = 1.0):
+   g = np.exp(-(intensity_dif * intensity_dif) / (2 * sigma * sigma))
+   return g
 """
    CONVOLUTION IMPLEMENTATION (10 Points)
 
@@ -104,7 +107,7 @@ def gaussian_1d(sigma = 1.0):
        image.
 
    (4) When computing a product at locations where the filter extends beyond
-       the defined image, treat missing terms as zero.  (Equivalently stated,
+       the defined image, treat missing terms as zero.  (Equivalently stated,3
        treat the image as being padded with zeros around its border).
 
    You must write the code for the nested loops of the convolutions yourself,
@@ -216,10 +219,45 @@ def denoise_gaussian(image, sigma = 1.0):
         img   - denoised image, a 2D numpy array of the same shape as the input
 """
 
+# sigma s bounds things
+
+# rgb value of particular pixels (x1 - x2) / sigma^2
+
 def denoise_bilateral(image, sigma_s=1, sigma_r=25.5):
    assert image.ndim == 2, 'image should be grayscale'
    ##########################################################################
-   spacial = denoise_gaussian(image, sigma_s / 3)
+   # spacial should be a sigma_s x sigma_s gaussian array
+   spacial = gaussian_1d(sigma_s / 3)
+   spacial = spacial.T@spacial
+
+   h_padding = sigma_s
+   v_padding = h_padding
+   new_image = np.zeros(image.shape)
+   padded_image = mirror_border(image, wx=v_padding, wy=h_padding)
+   wp = 0
+   for x_idx in range(new_image.shape[1]):
+      x_idx = x_idx + h_padding
+      for y_idx in range(new_image.shape[0]):
+         y_idx = y_idx + v_padding
+         sub_img = padded_image[y_idx - v_padding: y_idx + v_padding + 1,
+                                x_idx - h_padding: x_idx + h_padding + 1]
+         # Difference is here? multiply sub image by gaussian, then subtract center pixel value from all other pixels, 
+         # find it in range gaussian and then multiply differences by gaussian? want to _ignore_ central pixel tho? first pixel tho?
+         # potentially ignore self, self not in neighborhood?
+         differences = np.absolute(sub_img - padded_image[y_idx, x_idx])
+         range_gaus = gaussian_for_color(differences, sigma_r)
+         wp = np.sum(spacial * range_gaus)
+         
+         # need to transform the differences according to gaussian function!
+         filtered_pixel = np.sum(sub_img * spacial * range_gaus) / wp
+         new_image[y_idx - v_padding, x_idx - h_padding] = filtered_pixel
+
+   # do we use the convolve_2d and gaussian functions we already created?
+   # What is ||p-q|| = distance between p and q, I_p?  
+   # Idea: iterate through with a double for loop (like 2d convolution), denoise gaussian in that window, sum pixels and multiply by intensity gaussian?
+   # Idea: make new filter, combining gaussian and the sigma_r? Then use convolve 2d?
+
+   # 
    # denoise gaussian spacially with appropriate sigma
    # horiz_space_gaus = gaussian_1d(sigma_s / 3)
    # vert_space_gaus = horiz_space_gaus.T
@@ -239,10 +277,9 @@ def denoise_bilateral(image, sigma_s=1, sigma_r=25.5):
    #       gs = denoise_gaussian(sub_img, sigma_s/3)
    #       new_image[y_idx - v_padding, x_idx - h_padding] = filtered_pixel
 
-   # denoise gaussian intensityly with appropriate sigma? 
-   raise NotImplementedError('denoise_bilateral')
+   #raise NotImplementedError('denoise_bilateral')
    ##########################################################################
-   return img
+   return new_image
 
 """
    SMOOTHING AND DOWNSAMPLING (5 Points)
@@ -360,8 +397,6 @@ def sobel_gradients(image):
    dy = conv_2d(image, component2.T, 'mirror')
    dy = conv_2d(dy, component1, 'mirror')
 
-   
-   
    return dx, dy
    ##########################################################################
 
