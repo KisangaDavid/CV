@@ -217,12 +217,32 @@ def denoise_gaussian(image, sigma = 1.0):
 """
 
 def denoise_bilateral(image, sigma_s=1, sigma_r=25.5):
-    assert image.ndim == 2, 'image should be grayscale'
-    ##########################################################################
-    # TODO: YOUR CODE HERE
-    raise NotImplementedError('denoise_bilateral')
-    ##########################################################################
-    return img
+   assert image.ndim == 2, 'image should be grayscale'
+   ##########################################################################
+   spacial = denoise_gaussian(image, sigma_s / 3)
+   # denoise gaussian spacially with appropriate sigma
+   # horiz_space_gaus = gaussian_1d(sigma_s / 3)
+   # vert_space_gaus = horiz_space_gaus.T
+
+   # h_padding, v_padding = horiz_space_gaus[0] // 2
+ 
+   # new_image = np.zeros(image.shape)
+
+   # padded_image = mirror_border(image, wx=v_padding, wy=h_padding)
+
+   # for x_idx in range(new_image.shape[1]):
+   #    x_idx = x_idx + h_padding
+   #    for y_idx in range(new_image.shape[0]):
+   #       y_idx = y_idx + v_padding
+   #       sub_img = padded_image[y_idx - v_padding: y_idx + v_padding + 1,
+   #                              x_idx - h_padding: x_idx + h_padding + 1]
+   #       gs = denoise_gaussian(sub_img, sigma_s/3)
+   #       new_image[y_idx - v_padding, x_idx - h_padding] = filtered_pixel
+
+   # denoise gaussian intensityly with appropriate sigma? 
+   raise NotImplementedError('denoise_bilateral')
+   ##########################################################################
+   return img
 
 """
    SMOOTHING AND DOWNSAMPLING (5 Points)
@@ -332,10 +352,18 @@ def bilinear_upsampling(image, upsample_factor = 2):
 """
 def sobel_gradients(image):
    ##########################################################################
-   # TODO: YOUR CODE HERE
-   raise NotImplementedError('sobel_gradients')
-   ##########################################################################
+   component1 = np.array([1, 2, 1]).reshape((1,3))
+   component2 = np.array([-1,0,1]).reshape((1,3))
+   dx = conv_2d(image, component1.T, 'mirror')
+   dx = conv_2d(dx, component2, 'mirror')
+
+   dy = conv_2d(image, component2.T, 'mirror')
+   dy = conv_2d(dy, component1, 'mirror')
+
+   
+   
    return dx, dy
+   ##########################################################################
 
 """
    NONMAXIMUM SUPPRESSION (10 Points)
