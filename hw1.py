@@ -216,7 +216,6 @@ def denoise_bilateral(image, sigma_s=1, sigma_r=25.5):
    assert image.ndim == 2, 'image should be grayscale'
    spacial = gaussian_1d(sigma_s / 3)
    spacial = spacial.T@spacial
-
    h_padding = sigma_s
    v_padding = h_padding
    new_image = np.zeros(image.shape)
@@ -264,7 +263,6 @@ def denoise_bilateral(image, sigma_s=1, sigma_r=25.5):
      result - downsampled image, a 2D numpy array with spatial dimension reduced
 """
 def smooth_and_downsample(image, downsample_factor = 2):
-   ##########################################################################
    padded_image = mirror_border(image, downsample_factor, downsample_factor)
    smooth_image = denoise_gaussian(padded_image, downsample_factor / np.pi)
    new_image_h = math.ceil(image.shape[0] / downsample_factor)
@@ -349,7 +347,6 @@ def bilinear_upsampling(image, upsample_factor = 2):
             new_img[y_idx,x_idx] = (y2 - y)/(y2 - y1) * cxy1  +  (y - y1)/(y2 - y1) * cxy2
 
     return new_img
-    ##########################################################################
 
 """
    SOBEL GRADIENT OPERATOR (5 Points)
@@ -427,12 +424,33 @@ def sobel_gradients(image):
                pixels that are not a local maximum of strength along an
                edge have been suppressed (assigned a strength of zero)
 """
+def get_mag_theta(image):
+   dx, dy = sobel_gradients(image)
+   mag = np.sqrt(dx*dx +  dy*dy)
+   theta = np.arctan2(dy,dx)
+   return mag, theta
+
+
 def nonmax_suppress(mag, theta):
-   ##########################################################################
-   # TODO: YOUR CODE HERE
-   raise NotImplementedError('nonmax_suppress')
-   ##########################################################################
-   return nonmax
+   theta[theta < 0] += np.pi
+   suppressed_img = np.zeros((mag.shape))
+   for y in range(mag.shape[0] - 1):
+      for x in range(mag.shape[1] - 1):
+         if theta[y,x] < np.pi / 8 or theta[y,x] >= 7 * np.pi / 8:
+            lower = mag[y,x-1]
+            higher = mag[y,x+1]
+         elif theta[y,x] < 3 * np.pi / 8 and theta[y,x] >= np.pi / 8:
+            lower = mag[y - 1, x + 1]
+            higher = mag[y + 1, x - 1]
+         elif theta[y,x] < 5 * np.pi / 8 and theta[y,x] >= 3* np.pi / 8:
+            lower = mag[y+1, x]
+            higher = mag[y-1, x]
+         elif theta[y,x] < 7 * np.pi / 8 and theta[y,x] >= 5 * np.pi / 8:
+            lower = mag[y + 1, x + 1]
+            higher = mag[y - 1, x - 1]
+         if(mag[y,x] >= higher and mag[y,x] > lower):
+            suppressed_img[y,x] = mag[y,x]
+   return suppressed_img
 
 
 """
