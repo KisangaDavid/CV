@@ -1,5 +1,5 @@
 import numpy as np
-
+import math
 """
    Mirror an image about its border.
 
@@ -125,10 +125,8 @@ def gaussian_for_color(intensity_dif, sigma = 1.0):
                result of convolving the image with filt
 """
 def conv_2d(image, filt, mode='zero'):
-   # make sure that both image and filter are 2D arrays
    assert image.ndim == 2, 'image should be grayscale'
    filt = np.atleast_2d(filt)
-   ##########################################################################
    assert mode == 'zero' or mode == 'mirror', 'mode must be zero or mirror'
 
    h_padding = filt.shape[1] // 2
@@ -148,8 +146,6 @@ def conv_2d(image, filt, mode='zero'):
                                 x_idx - h_padding: x_idx + h_padding + 1]
          filtered_pixel = np.sum((sub_img * filt))
          new_image[y_idx - v_padding, x_idx - h_padding] = filtered_pixel
-         # calculate according to filter
-   ##########################################################################
    return new_image
 
 """
@@ -180,14 +176,11 @@ def conv_2d(image, filt, mode='zero'):
       img   - denoised image, a 2D numpy array of the same shape as the input
 """
 def denoise_gaussian(image, sigma = 1.0):
-   ##########################################################################
-   # TODO: YOUR CODE HERE
    horiz_gaussian = gaussian_1d(sigma)
    vert_gaussian = horiz_gaussian.T
    img = conv_2d(image, horiz_gaussian, 'mirror')
    img = conv_2d(img, vert_gaussian, 'mirror')
    return img
-   ##########################################################################
 
 """
     BILATERAL DENOISING (5 Points)
@@ -219,14 +212,8 @@ def denoise_gaussian(image, sigma = 1.0):
         img   - denoised image, a 2D numpy array of the same shape as the input
 """
 
-# sigma s bounds things
-
-# rgb value of particular pixels (x1 - x2) / sigma^2
-
 def denoise_bilateral(image, sigma_s=1, sigma_r=25.5):
    assert image.ndim == 2, 'image should be grayscale'
-   ##########################################################################
-   # spacial should be a sigma_s x sigma_s gaussian array
    spacial = gaussian_1d(sigma_s / 3)
    spacial = spacial.T@spacial
 
@@ -241,44 +228,11 @@ def denoise_bilateral(image, sigma_s=1, sigma_r=25.5):
          y_idx = y_idx + v_padding
          sub_img = padded_image[y_idx - v_padding: y_idx + v_padding + 1,
                                 x_idx - h_padding: x_idx + h_padding + 1]
-         # Difference is here? multiply sub image by gaussian, then subtract center pixel value from all other pixels, 
-         # find it in range gaussian and then multiply differences by gaussian? want to _ignore_ central pixel tho? first pixel tho?
-         # potentially ignore self, self not in neighborhood?
          differences = np.absolute(sub_img - padded_image[y_idx, x_idx])
          range_gaus = gaussian_for_color(differences, sigma_r)
          wp = np.sum(spacial * range_gaus)
-         
-         # need to transform the differences according to gaussian function!
          filtered_pixel = np.sum(sub_img * spacial * range_gaus) / wp
          new_image[y_idx - v_padding, x_idx - h_padding] = filtered_pixel
-
-   # do we use the convolve_2d and gaussian functions we already created?
-   # What is ||p-q|| = distance between p and q, I_p?  
-   # Idea: iterate through with a double for loop (like 2d convolution), denoise gaussian in that window, sum pixels and multiply by intensity gaussian?
-   # Idea: make new filter, combining gaussian and the sigma_r? Then use convolve 2d?
-
-   # 
-   # denoise gaussian spacially with appropriate sigma
-   # horiz_space_gaus = gaussian_1d(sigma_s / 3)
-   # vert_space_gaus = horiz_space_gaus.T
-
-   # h_padding, v_padding = horiz_space_gaus[0] // 2
- 
-   # new_image = np.zeros(image.shape)
-
-   # padded_image = mirror_border(image, wx=v_padding, wy=h_padding)
-
-   # for x_idx in range(new_image.shape[1]):
-   #    x_idx = x_idx + h_padding
-   #    for y_idx in range(new_image.shape[0]):
-   #       y_idx = y_idx + v_padding
-   #       sub_img = padded_image[y_idx - v_padding: y_idx + v_padding + 1,
-   #                              x_idx - h_padding: x_idx + h_padding + 1]
-   #       gs = denoise_gaussian(sub_img, sigma_s/3)
-   #       new_image[y_idx - v_padding, x_idx - h_padding] = filtered_pixel
-
-   #raise NotImplementedError('denoise_bilateral')
-   ##########################################################################
    return new_image
 
 """
@@ -297,9 +251,9 @@ def denoise_bilateral(image, sigma_s=1, sigma_r=25.5):
 
       Make an appropriate choice of sigma to avoid insufficient or over smoothing.
 
-      In principle, the sigma in gaussian filter should respect the cut-off frequency
-      1 / (2 * k) with k being the downsample factor and the cut-off frequency of
-      gaussian filter is 1 / (2 * pi * sigma).
+         In principle, the sigma in gaussian filter should respect the cut-off frequency
+         1 / (2 * k) with k being the downsample factor and the cut-off frequency of
+         gaussian filter is 1 / (2 * pi * sigma).
 
 
    Arguments:
@@ -310,11 +264,23 @@ def denoise_bilateral(image, sigma_s=1, sigma_r=25.5):
      result - downsampled image, a 2D numpy array with spatial dimension reduced
 """
 def smooth_and_downsample(image, downsample_factor = 2):
-    ##########################################################################
-    # TODO: YOUR CODE HERE
-    raise NotImplementedError('smooth_and_downsample')
-    ##########################################################################
-    return result
+   ##########################################################################
+   padded_image = mirror_border(image, downsample_factor, downsample_factor)
+   smooth_image = denoise_gaussian(padded_image, downsample_factor / np.pi)
+   new_image_h = math.ceil(image.shape[0] / downsample_factor)
+   new_image_w = math.ceil(image.shape[1] / downsample_factor)
+   new_image = np.zeros((new_image_h, new_image_w))
+   for x_idx in range(new_image.shape[1]):
+      padded_x = x_idx * downsample_factor + downsample_factor
+      for y_idx in range(new_image.shape[0]):
+         padded_y = y_idx * downsample_factor + downsample_factor
+         sub_img = smooth_image[padded_y: padded_y + downsample_factor,
+                                 padded_x: padded_x + downsample_factor]
+         averaged_pixel = np.mean(sub_img)
+         new_image[y_idx, x_idx] = averaged_pixel
+   return new_image
+
+  
 
 """
    BILINEAR UPSAMPLING (5 Points)
@@ -356,9 +322,34 @@ def smooth_and_downsample(image, downsample_factor = 2):
 def bilinear_upsampling(image, upsample_factor = 2):
     ##########################################################################
     # TODO: YOUR CODE HERE
-    raise NotImplementedError('bilinear_upsampling')
+    new_image_h = image.shape[0] * upsample_factor
+    new_image_w = image.shape[1] * upsample_factor
+    new_img = np.zeros((new_image_h, new_image_w))
+    for y_idx in range(new_img.shape[0]):
+       for x_idx in range(new_img.shape[1]):
+         x = x_idx / upsample_factor
+         y = y_idx / upsample_factor
+         x1 = math.floor(x)
+         y1 = math.floor(y)
+         x2 = min(math.ceil(x), image.shape[1]-1)
+         y2 = min(math.ceil(y), image.shape[0] - 1)
+         if x1 == x2 and y1 == y2:
+            new_img[y_idx,x_idx] = image[int(y1),int(x1)]
+         elif x1 == x2:
+            yfloor = image[y1,x1]
+            yceil = image[y2,x1]
+            new_img[y_idx,x_idx] = yfloor * (y2 - y) + yceil * (y - y1)
+         elif y1 == y2:
+            xfloor = image[y1,x1]
+            xceil = image[y1,x2]
+            new_img[y_idx,x_idx] = xfloor * (x2 - x) + xceil * (x - x1)
+         else:
+            cxy1 = (x2 - x)/(x2 - x1) * image[y1,x1] + (x-x1)/(x2-x1) * image[y1,x2]
+            cxy2 = (x2 - x)/(x2 - x1) * image[y2,x1] + (x-x1)/(x2-x1) * image[y2,x2]
+            new_img[y_idx,x_idx] = (y2 - y)/(y2 - y1) * cxy1  +  (y - y1)/(y2 - y1) * cxy2
+
+    return new_img
     ##########################################################################
-    return result
 
 """
    SOBEL GRADIENT OPERATOR (5 Points)
