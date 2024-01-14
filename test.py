@@ -5,16 +5,12 @@ import matplotlib.pyplot as plt
 import math
 
 
-image = load_image('data/edge_img/easy/002.jpg')
-
-image = denoise_gaussian(image)
+image = load_image('data/edge_img/medium/003.jpg')
+image = denoise_gaussian(image,math.sqrt(2))
 mag, theta = get_mag_theta(image)
 suppressed = nonmax_suppress(mag, theta)
-plt.figure(); plt.imshow(suppressed, cmap='gray')
-plt.figure(); plt.imshow(theta, cmap='gray')
-plt.figure(); plt.imshow(image, cmap='gray')
+edgelinked = hysteresis_edge_linking(suppressed, theta)
+
+plt.figure(); plt.imshow(edgelinked, cmap='gray')
+
 plt.show()
-#plt.show()
-#print(gaussian_1d(5))
-#plt.show()
-# print(gaussian(3, 1))

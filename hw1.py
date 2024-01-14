@@ -440,14 +440,14 @@ def nonmax_suppress(mag, theta):
             lower = mag[y,x-1]
             higher = mag[y,x+1]
          elif theta[y,x] < 3 * np.pi / 8 and theta[y,x] >= np.pi / 8:
-            lower = mag[y - 1, x + 1]
-            higher = mag[y + 1, x - 1]
+            lower = mag[y + 1, x + 1]
+            higher = mag[y - 1, x - 1]
          elif theta[y,x] < 5 * np.pi / 8 and theta[y,x] >= 3* np.pi / 8:
             lower = mag[y+1, x]
             higher = mag[y-1, x]
          elif theta[y,x] < 7 * np.pi / 8 and theta[y,x] >= 5 * np.pi / 8:
-            lower = mag[y + 1, x + 1]
-            higher = mag[y - 1, x - 1]
+            lower = mag[y - 1, x + 1]
+            higher = mag[y + 1, x - 1]
          if(mag[y,x] >= higher and mag[y,x] > lower):
             suppressed_img[y,x] = mag[y,x]
    return suppressed_img
@@ -495,10 +495,41 @@ def nonmax_suppress(mag, theta):
 
 def hysteresis_edge_linking(nonmax, theta):
    ##########################################################################
-   # TODO: YOUR CODE HERE
-   raise NotImplementedError('hysteresis_edge_linking')
-   ##########################################################################
-   return edge
+   edge_linked = np.copy(nonmax)
+   high_threshold = np.mean(nonmax) * 5
+   # high_threshold = np.max(nonmax) / 12
+   low_threshold = high_threshold / 3
+   edge_linked[nonmax >= high_threshold] = 255
+   edge_linked[nonmax < low_threshold] = 0
+   strong_rows, strong_cols = np.nonzero(edge_linked == 255)
+   strong_indexes = list(zip(strong_rows, strong_cols))
+   to_return = np.zeros((nonmax.shape))
+   while strong_indexes:
+      y,x = strong_indexes.pop()
+      to_return[y,x] = 255
+      direction = theta[y,x]
+      if direction < np.pi / 8 or theta[y,x] >= 7 * np.pi / 8:
+            if nonmax[y,x-1] != 0 and nonmax[y,x-1] != 255:
+               strong_indexes.append((y, x-1))
+            if nonmax[y,x+1] != 0 and nonmax[y,x+1] != 255:
+               strong_indexes.append((y, x+1))
+      elif theta[y,x] < 3 * np.pi / 8 and theta[y,x] >= np.pi / 8:
+         if nonmax[y + 1,x + 1] != 0 and nonmax[y + 1,x+1] != 255:
+               strong_indexes.append((y + 1, x + 1))
+         if nonmax[y - 1,x - 1] != 0 and nonmax[y - 1,x-1] != 255:
+            strong_indexes.append((y - 1, x - 1))
+      elif theta[y,x] < 5 * np.pi / 8 and theta[y,x] >= 3* np.pi / 8:
+         if nonmax[y + 1,x] != 0 and nonmax[y + 1,x] != 255:
+               strong_indexes.append((y + 1, x))
+         if nonmax[y - 1,x] != 0 and nonmax[y - 1,x] != 255:
+            strong_indexes.append((y - 1, x))
+      elif theta[y,x] < 7 * np.pi / 8 and theta[y,x] >= 5 * np.pi / 8:
+         if nonmax[y - 1, x + 1] != 0 and nonmax[y - 1,x+1] != 255:
+               strong_indexes.append((y - 1, x + 1))
+         if nonmax[y + 1,x - 1] != 0 and nonmax[y + 1,x-1] != 255:
+            strong_indexes.append((y + 1, x - 1))
+   return to_return
+
 
 """
    CANNY EDGE DETECTOR (5 Points)
