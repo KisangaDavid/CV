@@ -424,8 +424,7 @@ def sobel_gradients(image):
                pixels that are not a local maximum of strength along an
                edge have been suppressed (assigned a strength of zero)
 """
-def get_mag_theta(image):
-   dx, dy = sobel_gradients(image)
+def get_mag_theta(dx, dy):
    mag = np.sqrt(dx*dx +  dy*dy)
    theta = np.arctan2(dy,dx)
    return mag, theta
@@ -569,7 +568,24 @@ def hysteresis_edge_linking(nonmax, theta):
 """
 def canny(image, downsample_factor = [1]):
    ##########################################################################
-   # TODO: YOUR CODE HERE
-   raise NotImplementedError('canny')
+   # upsampled_  = np.array((len(downsample_factor),)
+   thetas = np.zeros((len(downsample_factor),image.shape[0], image.shape[1]))
+   mags = np.zeros((len(downsample_factor),image.shape[0], image.shape[1]))
+   for idx, factor in enumerate(downsample_factor):
+      # downsampled_image = smooth_and_downsample(image, factor)
+      downsampled_image = denoise_gaussian(image, factor)
+      dx, dy = sobel_gradients(downsampled_image)
+      mag, theta = get_mag_theta(dx, dy)
+      mags[idx,:] = mag
+      thetas[idx,:] = theta
+
+      # upsampled_mag = bilinear_upsampling(mag, factor)[0:image.shape[0], 0:image.shape[1]]
+    #  mags[idx,:] = upsampled_mag
+    #  upsampled_theta = bilinear_upsampling(theta, factor)[0:image.shape[0], 0:image.shape[1]]
+    #  thetas[idx,:] = upsampled_theta
+   avg_theta = np.mean(thetas, axis = 0)
+   avg_mag = np.mean(mags, axis = 0)
+   suppressed = nonmax_suppress(avg_mag, avg_theta)
+   edge_linked = hysteresis_edge_linking(suppressed, avg_theta)
    ##########################################################################
-   return mag, nonmax, edge
+   return avg_mag, suppressed, edge_linked
