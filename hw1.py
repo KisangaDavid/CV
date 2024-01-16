@@ -278,8 +278,6 @@ def smooth_and_downsample(image, downsample_factor = 2):
          new_image[y_idx, x_idx] = averaged_pixel
    return new_image
 
-  
-
 """
    BILINEAR UPSAMPLING (5 Points)
 
@@ -318,8 +316,6 @@ def smooth_and_downsample(image, downsample_factor = 2):
      result - upsampled image, a 2D numpy array with spatial dimension increased
 """
 def bilinear_upsampling(image, upsample_factor = 2):
-    ##########################################################################
-    # TODO: YOUR CODE HERE
     new_image_h = image.shape[0] * upsample_factor
     new_image_w = image.shape[1] * upsample_factor
     new_img = np.zeros((new_image_h, new_image_w))
@@ -493,10 +489,8 @@ def nonmax_suppress(mag, theta):
 """
 
 def hysteresis_edge_linking(nonmax, theta):
-   ##########################################################################
    edge_linked = np.copy(nonmax)
-   high_threshold = np.mean(nonmax) * 5
-   # high_threshold = np.max(nonmax) / 12
+   high_threshold = np.mean(nonmax) * 4.25
    low_threshold = high_threshold / 3
    edge_linked[nonmax >= high_threshold] = 255
    edge_linked[nonmax < low_threshold] = 0
@@ -567,25 +561,25 @@ def hysteresis_edge_linking(nonmax, theta):
       edge     - a 2D numpy array, same shape as input, edges map where edge pixel is 1 and 0 otherwise.
 """
 def canny(image, downsample_factor = [1]):
-   ##########################################################################
-   # upsampled_  = np.array((len(downsample_factor),)
    thetas = np.zeros((len(downsample_factor),image.shape[0], image.shape[1]))
    mags = np.zeros((len(downsample_factor),image.shape[0], image.shape[1]))
    for idx, factor in enumerate(downsample_factor):
-      # downsampled_image = smooth_and_downsample(image, factor)
-      downsampled_image = denoise_gaussian(image, factor)
-      dx, dy = sobel_gradients(downsampled_image)
-      mag, theta = get_mag_theta(dx, dy)
-      mags[idx,:] = mag
-      thetas[idx,:] = theta
-
-      # upsampled_mag = bilinear_upsampling(mag, factor)[0:image.shape[0], 0:image.shape[1]]
-    #  mags[idx,:] = upsampled_mag
-    #  upsampled_theta = bilinear_upsampling(theta, factor)[0:image.shape[0], 0:image.shape[1]]
-    #  thetas[idx,:] = upsampled_theta
+      if factor == 1:
+         image = denoise_gaussian(image, 1)
+         dx, dy = sobel_gradients(image)
+         mag, theta = get_mag_theta(dx, dy)
+         mags[idx,:] = mag
+         thetas[idx,:] = theta
+      else:
+         downsampled_image = smooth_and_downsample(image, factor)
+         dx, dy = sobel_gradients(downsampled_image)
+         mag, theta = get_mag_theta(dx, dy)
+         upsampled_mag = bilinear_upsampling(mag, factor)[0:image.shape[0], 0:image.shape[1]]
+         mags[idx,:] = upsampled_mag
+         upsampled_theta = bilinear_upsampling(theta, factor)[0:image.shape[0], 0:image.shape[1]]
+         thetas[idx,:] = upsampled_theta
    avg_theta = np.mean(thetas, axis = 0)
    avg_mag = np.mean(mags, axis = 0)
    suppressed = nonmax_suppress(avg_mag, avg_theta)
    edge_linked = hysteresis_edge_linking(suppressed, avg_theta)
-   ##########################################################################
    return avg_mag, suppressed, edge_linked
