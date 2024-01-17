@@ -582,4 +582,17 @@ def canny(image, downsample_factor = [1]):
    avg_mag = np.mean(mags, axis = 0)
    suppressed = nonmax_suppress(avg_mag, avg_theta)
    edge_linked = hysteresis_edge_linking(suppressed, avg_theta)
+
+   # Improving edge detection by suppressing edges of length 1, which sometimes pop up when downsampling 
+   # and upsampling
+   for y in range(1, edge_linked.shape[0] - 1):
+      for x in range(1, edge_linked.shape[1] - 1):
+         if edge_linked[y - 1,x - 1] != 255 and edge_linked[y - 1,x + 1] != 255 and edge_linked[y - 1,x] != 255 \
+            and edge_linked[y,x - 1] != 255 and edge_linked[y,x + 1] != 255 and edge_linked[y + 1,x - 1] != 255 \
+               and edge_linked[y + 1,x] != 255 and edge_linked[y + 1,x + 1] != 255:
+            edge_linked[y,x] = 0
+
+   
+
+
    return avg_mag, suppressed, edge_linked
