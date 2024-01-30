@@ -87,6 +87,7 @@ def plot_matches(image0, image1, xs0, ys0, xs1, ys1, matches, scores, th):
          plt.plot(X,Y,'b-')
          plt.plot(X[0],Y[0],'ro')
          plt.plot(X[1],Y[1],'ro')
+   plt.show()
 
 """
    Visualize the predicted bounding box (shown in blue) and ground truth
@@ -110,3 +111,4 @@ def display_bbox(image, pred_box, target_box):
    rect = patches.Rectangle((target_box[0], target_box[1]), target_box[2] - target_box[0],
     target_box[3] - target_box[1],linewidth=1,edgecolor='red',facecolor='none')
    ax.add_patch(rect)
+   plt.show()
