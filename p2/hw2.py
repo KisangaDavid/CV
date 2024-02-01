@@ -171,8 +171,8 @@ def find_interest_points(image, max_points = 200, scale = 1.0, mask = None):
    dy2 = denoise_gaussian(dy * dy, 1)
    dxdy = denoise_gaussian(dx * dy, 1)
 
-   window_radius = 2
-   bin_width = 3
+   window_radius = 3
+   bin_width = 5
    zero_length = bin_width + bin_width // 2
    # R values seem funky
    R = (dx2*dy2 - ((dxdy * dxdy))) - (0.06) * ((dx2 + dy2) * (dx2 + dy2))
@@ -195,11 +195,11 @@ def find_interest_points(image, max_points = 200, scale = 1.0, mask = None):
 
    # lower_limit is the max_points + 1 highest R value
    lower_limit = np.partition(R.flatten(), (R.flatten().size - max_points - 1))[R.flatten().size - max_points - 1]
-   print(R[R > 0].shape)
-   print(lower_limit)
+  # print(R[R > 0].shape)
+  # print(lower_limit)
    corner_idxs = np.nonzero((R > 0) & (R > lower_limit))
    regularized_scores = R[corner_idxs] / np.max(R[corner_idxs])
-   print(regularized_scores.shape)
+ #  print(regularized_scores.shape)
    ys = corner_idxs[0]
    xs = corner_idxs[1]
    scores = regularized_scores.flatten()
@@ -253,7 +253,7 @@ def find_interest_points(image, max_points = 200, scale = 1.0, mask = None):
 """
 def extract_features(image, xs, ys, scale = 1.0):
    # check that image is grayscale
-   bin_width = 3
+   bin_width = 5
 
    assert image.ndim == 2, 'image should be grayscale'
    image = denoise_gaussian(image)
@@ -268,7 +268,7 @@ def extract_features(image, xs, ys, scale = 1.0):
       partition_mag = mag[y - bin_width - bin_width //2: y + bin_width + bin_width //2 + 1, 
             x - bin_width - bin_width // 2: x + bin_width + bin_width //2 + 1]
       # Code to convolve with gaussian  
-      # horiz_gaussian = gaussian_1d(1.2)
+      # horiz_gaussian = gaussian_1d(2.1)
       # vert_gaussian = horiz_gaussian.T
       # window_gaussian = vert_gaussian@horiz_gaussian
       # partition_mag = partition_mag * window_gaussian
@@ -282,11 +282,11 @@ def extract_features(image, xs, ys, scale = 1.0):
             cur_theta += np.pi
             cur_dir = cur_theta / (np.pi / 4)
             # catch edge case if dir == 2 pi
-            histogram[partition_y // 3, partition_x // 3, int(np.floor(cur_dir))] += cur_mag * (1 - (cur_dir - np.floor(cur_dir)))
+            histogram[partition_y // bin_width, partition_x // bin_width, int(np.floor(cur_dir))] += cur_mag * (1 - (cur_dir - np.floor(cur_dir)))
             if cur_dir > 7:
-               histogram[partition_y // 3, partition_x // 3, 0] += cur_mag * (1 - (np.ceil(cur_dir) - cur_dir))
+               histogram[partition_y // bin_width, partition_x // bin_width, 0] += cur_mag * (1 - (np.ceil(cur_dir) - cur_dir))
             else:
-               histogram[partition_y // 3, partition_x // 3, int(np.ceil(cur_dir))] += cur_mag * (1 - (np.ceil(cur_dir) - cur_dir))
+               histogram[partition_y // bin_width, partition_x // bin_width, int(np.ceil(cur_dir))] += cur_mag * (1 - (np.ceil(cur_dir) - cur_dir))
       feats_vector = histogram.flatten()
       feats_vector = feats_vector / np.linalg.norm(feats_vector)
       feats_vector[feats_vector > 0.2] = 0.2
@@ -400,13 +400,13 @@ def match_features(feats0, feats1, scores0, scores1):
 """
 def hough_votes(xs0, ys0, xs1, ys1, matches, scores):
    ##########################################################################
-   bin_size = 5
+   bin_size = 6
    ys = np.concatenate([ys0, ys1])
    xs = np.concatenate([xs0, xs1])
    max_y_dim = max(ys)
    max_x_dim = max(xs)
-   vote_y_dim = int(np.ceil(max_y_dim / bin_size))
-   vote_x_dim = int(np.ceil(max_x_dim / bin_size))
+   vote_y_dim = int(np.ceil(max_y_dim / bin_size) + 1)
+   vote_x_dim = int(np.ceil(max_x_dim / bin_size) + 1)
    votes = np.zeros((vote_y_dim, vote_x_dim))
    for idx, x0 in enumerate(xs0):
       best_match_idx = matches[idx]
@@ -417,14 +417,22 @@ def hough_votes(xs0, ys0, xs1, ys1, matches, scores):
       x_translation = x1 - x0
       y_translation = y1 - y0
       # add to 4 different bins, can interpolate for better results
-      y_bottom = int(np.floor(y_translation /5))
-      y_top = int(np.ceil(y_translation /5))
-      x_bottom = int(np.floor(x_translation /5))
-      x_top = int(np.ceil(x_translation /5))
-      votes[y_bottom, x_bottom] += votes[y_bottom,x_bottom] + ((scores[idx] - 1) * 3)
-      votes[y_bottom, x_top] += votes[y_bottom,x_top] + ((scores[idx] - 1) * 3)
-      votes[y_top, x_bottom] += votes[y_top,x_bottom] + ((scores[idx] - 1) * 3)
-      votes[y_top, x_top] += votes[y_top,x_top] + ((scores[idx] - 1) * 3)
+      # TODO can check if template fits on image
+      # X translation negative???
+      if x_translation < 0 or y_translation < 0:
+         continue
+
+      # add to surrounding bins if able able to
+ #     if y_bottom != 0:
+      
+      y_bottom = int(np.floor(y_translation /bin_size))
+      y_top = int(np.ceil(y_translation /bin_size))
+      x_bottom = int(np.floor(x_translation /bin_size))
+      x_top = int(np.ceil(x_translation /bin_size))
+      votes[y_bottom, x_bottom] += ((scores[idx] - 1))
+      votes[y_bottom, x_top] += ((scores[idx] - 1))
+      votes[y_top, x_bottom] += ((scores[idx] - 1))
+      votes[y_top, x_top] += ((scores[idx] - 1))
    ty, tx = np.unravel_index(votes.argmax(), votes.shape)
    ty = ty * bin_size
    tx = tx * bin_size
@@ -476,14 +484,25 @@ def hough_votes(xs0, ys0, xs1, ys1, matches, scores):
 
 """
 def object_detection(template_images, template_masks, test_img):
-   xs1, ys1, scores1 = find_interest_points(test_img, max_points = 200)
+   scales = [0.8, 0.9, 1, 1.1, 1.2]
+   max_points = 200
+   xs1, ys1, scores1 = find_interest_points(test_img, max_points = max_points)
    feats1 = extract_features(test_img, xs1, ys1)
-   template_image = template_images[1]
-  # for idx, template_image in enumerate(template_images):
-   xs0, ys0, scores0 = find_interest_points(template_image, max_points = 200, mask=template_masks[1])
-   feats0 = extract_features(template_image, xs0, ys0)
-   matches, scores = match_features(feats0, feats1, scores0, scores1)
-   tx, ty, votes = hough_votes(xs0, ys0, xs1, ys1, matches, scores)
-   print(f"{tx} {ty}")
-   bbox = np.array([tx, ty, tx + template_images[0].shape[1], ty + template_images[0].shape[0]])
+   # template_image = template_images[1]
+   max_votes = 0
+   best_template = None
+   
+   best_tx, best_ty = -1,-1
+   for idx, template_image in enumerate(template_images):
+      xs0, ys0, scores0 = find_interest_points(template_image, max_points = max_points, mask=template_masks[idx])
+      feats0 = extract_features(template_image, xs0, ys0)
+      matches, scores = match_features(feats0, feats1, scores0, scores1)
+      tx, ty, votes = hough_votes(xs0, ys0, xs1, ys1, matches, scores)
+      # template idx 7 has 10 mil
+      if np.max(votes) > max_votes:
+         best_tx = tx
+         best_ty = ty
+         best_template = template_image
+         max_votes = np.max(votes)
+   bbox = np.array([best_tx, best_ty, best_tx + best_template.shape[1], best_ty + best_template.shape[0]])
    return bbox
