@@ -281,8 +281,12 @@ def extract_features(image, xs, ys, scale = 1.0):
             cur_mag = partition_mag[partition_y, partition_x]
             cur_theta += np.pi
             cur_dir = cur_theta / (np.pi / 4)
-            # catch edge case if dir == 2 pi
-            histogram[partition_y // bin_width, partition_x // bin_width, int(np.floor(cur_dir))] += cur_mag * (1 - (cur_dir - np.floor(cur_dir)))
+            # catch edge case if theta == 2 pi
+            if cur_dir == 8.0:
+               dir_idx = 0
+            else:
+               dir_idx = int(np.floor(cur_dir))
+            histogram[partition_y // bin_width, partition_x // bin_width, dir_idx] += cur_mag * (1 - (cur_dir - np.floor(cur_dir)))
             if cur_dir > 7:
                histogram[partition_y // bin_width, partition_x // bin_width, 0] += cur_mag * (1 - (np.ceil(cur_dir) - cur_dir))
             else:
@@ -400,7 +404,7 @@ def match_features(feats0, feats1, scores0, scores1):
 """
 def hough_votes(xs0, ys0, xs1, ys1, matches, scores):
    ##########################################################################
-   bin_size = 6
+   bin_size = 3
    ys = np.concatenate([ys0, ys1])
    xs = np.concatenate([xs0, xs1])
    max_y_dim = max(ys)
@@ -418,21 +422,64 @@ def hough_votes(xs0, ys0, xs1, ys1, matches, scores):
       y_translation = y1 - y0
       # add to 4 different bins, can interpolate for better results
       # TODO can check if template fits on image
-      # X translation negative???
+      # X translation or y translation < 0 is not possible, template image is considered top left
       if x_translation < 0 or y_translation < 0:
          continue
+      # add to corresponding bin
+      y_raw = y_translation /bin_size
+      x_raw = x_translation /bin_size
+      y_bucket = int(np.floor(y_raw))
+      x_bucket = int(np.floor(x_raw))
+      votes[y_bucket, x_bucket] += ((scores[idx] - 1))
 
-      # add to surrounding bins if able able to
- #     if y_bottom != 0:
+      nearest_y_dir = int(2 * np.round(y_raw - y_bucket) - 1)
+      nearest_x_dir = int(2 * np.round(x_raw - x_bucket) - 1)
+      cur_score = scores[idx] - 1
+
+      if x_bucket + nearest_x_dir > 0 and x_bucket + nearest_x_dir < vote_x_dim - 1:
+         votes[y_bucket, x_bucket + nearest_x_dir] += cur_score 
+      if y_bucket + nearest_y_dir > 0 and y_bucket + nearest_y_dir < vote_y_dim - 1:
+         votes[y_bucket + nearest_y_dir, x_bucket] += cur_score
+      if x_bucket + nearest_x_dir > 0 and x_bucket + nearest_x_dir < vote_x_dim - 1 \
+         and y_bucket + nearest_y_dir > 0 and y_bucket + nearest_y_dir < vote_y_dim - 1:
+         votes[y_bucket + nearest_y_dir, x_bucket + nearest_x_dir] += cur_score
+      # add to closest surrounding buckets as well
+      #
       
-      y_bottom = int(np.floor(y_translation /bin_size))
-      y_top = int(np.ceil(y_translation /bin_size))
-      x_bottom = int(np.floor(x_translation /bin_size))
-      x_top = int(np.ceil(x_translation /bin_size))
-      votes[y_bottom, x_bottom] += ((scores[idx] - 1))
-      votes[y_bottom, x_top] += ((scores[idx] - 1))
-      votes[y_top, x_bottom] += ((scores[idx] - 1))
-      votes[y_top, x_top] += ((scores[idx] - 1))
+      # votes[y_bucket, x_bucket] += cur_score
+      # if y_bucket != 0:
+      #    votes[y_bucket - 1, x_bucket] += cur_score * .8
+      # if x_bucket != 0:
+      #    votes[y_bucket, x_bucket - 1] += cur_score * .8
+      # if y_bucket != vote_y_dim - 1:
+      #    votes[y_bucket + 1, x_bucket] += cur_score * .8
+      # if x_bucket != vote_x_dim - 1:
+      #    votes[y_bucket, x_bucket + 1] += cur_score * .8
+
+      # add to surrounding 4 corners if not on edge:
+      
+      # if y_bucket !=  0 and x_bucket != 0:
+      #    votes[y_bucket - 1, x_bucket - 1] += cur_score * .6
+      # if y_bucket !=  0 and x_bucket != vote_x_dim - 1:
+      #    votes[y_bucket - 1, x_bucket + 1] += cur_score * .6
+      # if y_bucket !=  vote_y_dim - 1 and x_bucket != vote_x_dim - 1:
+      #    votes[y_bucket + 1, x_bucket + 1] += cur_score * .6
+      # if y_bucket !=  vote_y_dim - 1 and x_bucket != 0:
+      #    votes[y_bucket + 1, x_bucket - 1] += cur_score * .6
+
+      # if y_bucket != 0 and x_bucket != 0:
+      #    votes[y_bucket - 1, x_bucket - 1] += ((scores[idx] - 1))
+      
+    #  votes[y_top, x_top] += ((scores[idx] - 1))
+
+      # y_bottom = 
+      # y_top = int(np.ceil(y_translation /bin_size))
+      # x_bottom = 
+      # x_top = int(np.ceil(x_translation /bin_size))
+      
+      # votes[y_bottom, x_top] += ((scores[idx] - 1))
+      # votes[y_top, x_bottom] += ((scores[idx] - 1))
+      
    ty, tx = np.unravel_index(votes.argmax(), votes.shape)
    ty = ty * bin_size
    tx = tx * bin_size
