@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import cv2
 
 # Helper functions from hw1
 def mirror_border(image, wx = 1, wy = 1):
@@ -82,6 +83,52 @@ def get_mag_theta(dx, dy):
    mag = np.sqrt(dx*dx +  dy*dy)
    theta = np.arctan2(dy,dx)
    return mag, theta
+
+def bilinear_upsampling(image, upsample_factor = 2):
+    new_image_h = image.shape[0] * upsample_factor
+    new_image_w = image.shape[1] * upsample_factor
+    new_img = np.zeros((new_image_h, new_image_w))
+    for y_idx in range(new_img.shape[0]):
+       for x_idx in range(new_img.shape[1]):
+         x = x_idx / upsample_factor
+         y = y_idx / upsample_factor
+         x1 = math.floor(x)
+         y1 = math.floor(y)
+         x2 = min(math.ceil(x), image.shape[1]-1)
+         y2 = min(math.ceil(y), image.shape[0] - 1)
+         if x1 == x2 and y1 == y2:
+            new_img[y_idx,x_idx] = image[int(y1),int(x1)]
+         elif x1 == x2:
+            yfloor = image[y1,x1]
+            yceil = image[y2,x1]
+            new_img[y_idx,x_idx] = yfloor * (y2 - y) + yceil * (y - y1)
+         elif y1 == y2:
+            xfloor = image[y1,x1]
+            xceil = image[y1,x2]
+            new_img[y_idx,x_idx] = xfloor * (x2 - x) + xceil * (x - x1)
+         else:
+            cxy1 = (x2 - x)/(x2 - x1) * image[y1,x1] + (x-x1)/(x2-x1) * image[y1,x2]
+            cxy2 = (x2 - x)/(x2 - x1) * image[y2,x1] + (x-x1)/(x2-x1) * image[y2,x2]
+            new_img[y_idx,x_idx] = (y2 - y)/(y2 - y1) * cxy1  +  (y - y1)/(y2 - y1) * cxy2
+
+    return new_img
+
+
+def smooth_and_downsample(image, downsample_factor = 2):
+   padded_image = mirror_border(image, downsample_factor, downsample_factor)
+   smooth_image = denoise_gaussian(padded_image, downsample_factor / np.pi)
+   new_image_h = math.ceil(image.shape[0] / downsample_factor)
+   new_image_w = math.ceil(image.shape[1] / downsample_factor)
+   new_image = np.zeros((new_image_h, new_image_w))
+   for x_idx in range(new_image.shape[1]):
+      padded_x = x_idx * downsample_factor + downsample_factor
+      for y_idx in range(new_image.shape[0]):
+         padded_y = y_idx * downsample_factor + downsample_factor
+         sub_img = smooth_image[padded_y: padded_y + downsample_factor,
+                                 padded_x: padded_x + downsample_factor]
+         averaged_pixel = np.mean(sub_img)
+         new_image[y_idx, x_idx] = averaged_pixel
+   return new_image
 """
    INTEREST POINT OPERATOR (12 Points Implementation + 3 Points Write-up)
 
@@ -164,14 +211,12 @@ def find_interest_points(image, max_points = 200, scale = 1.0, mask = None):
    # check that image is grayscale
   # denoise_gaussian(image, 1)
    assert image.ndim == 2, 'image should be grayscale'
-   if mask is not None:
-      image = image * mask
    dx, dy = sobel_gradients(image)
    dx2 = denoise_gaussian(dx * dx, 1)
    dy2 = denoise_gaussian(dy * dy, 1)
    dxdy = denoise_gaussian(dx * dy, 1)
 
-   window_radius = 3
+   window_radius = int(3 * scale)
    bin_width = 5
    zero_length = bin_width + bin_width // 2
    # R values seem funky
@@ -530,26 +575,35 @@ def hough_votes(xs0, ys0, xs1, ys1, matches, scores):
                              (x_min, y_min, x_max, y_max)
 
 """
-def object_detection(template_images, template_masks, test_img):
-   scales = [0.8, 0.9, 1, 1.1, 1.2]
+def object_detection(template_images, template_masks, test_img, multi_scale = False):
    max_points = 200
    xs1, ys1, scores1 = find_interest_points(test_img, max_points = max_points)
    feats1 = extract_features(test_img, xs1, ys1)
    # template_image = template_images[1]
    max_votes = 0
    best_template = None
-   
    best_tx, best_ty = -1,-1
+   if multi_scale:
+      scales = [0.666, 0.8, 1, 1.25, 1.5]
+   else:
+      scales = [1]
+   # Try and rescale thetest image instead of the template image
    for idx, template_image in enumerate(template_images):
-      xs0, ys0, scores0 = find_interest_points(template_image, max_points = max_points, mask=template_masks[idx])
-      feats0 = extract_features(template_image, xs0, ys0)
-      matches, scores = match_features(feats0, feats1, scores0, scores1)
-      tx, ty, votes = hough_votes(xs0, ys0, xs1, ys1, matches, scores)
-      # template idx 7 has 10 mil
-      if np.max(votes) > max_votes:
-         best_tx = tx
-         best_ty = ty
-         best_template = template_image
-         max_votes = np.max(votes)
+      og_template_image = template_image * template_masks[idx]
+      for scale in scales:
+         if scale != 1:
+            cur_template_image = cv2.resize(og_template_image, (int(og_template_image.shape[1] * scale),int(og_template_image.shape[0] * scale)))
+            print("HI")
+         else:
+            cur_template_image = og_template_image
+         xs0, ys0, scores0 = find_interest_points(cur_template_image, max_points = max_points, mask=template_masks[idx])
+         feats0 = extract_features(cur_template_image, xs0, ys0)
+         matches, scores = match_features(feats0, feats1, scores0, scores1)
+         tx, ty, votes = hough_votes(xs0, ys0, xs1, ys1, matches, scores)
+         if np.max(votes) > max_votes:
+            best_tx = tx
+            best_ty = ty
+            best_template = cur_template_image
+            max_votes = np.max(votes)
    bbox = np.array([best_tx, best_ty, best_tx + best_template.shape[1], best_ty + best_template.shape[0]])
    return bbox
