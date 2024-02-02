@@ -532,7 +532,7 @@ def hough_votes(xs0, ys0, xs1, ys1, matches, scores):
 def object_detection(template_images, template_masks, test_img, multi_scale = False):
 
    if multi_scale:
-      scales = [0.8, 0.9, 1, 1.1, 1.2]
+      scales = [0.66,1, 1.5]
    else:
       scales = [1]
    max_points = 200
@@ -548,8 +548,8 @@ def object_detection(template_images, template_masks, test_img, multi_scale = Fa
       masked_og = og_template * template_masks[idx]
       for scale in scales:
          if scale != 1:
-            cur_template = cv2.resize(og_template, int(og_template.shape[1] * scale), og_template.shape[0] * scale)
-            cur_template_masked = cv2.resize(masked_og, int(masked_og.shape[1] * scale), masked_og.shape[0] * scale)
+            cur_template = cv2.resize(og_template, (int(og_template.shape[1] * scale), int(og_template.shape[0] * scale)))
+            cur_template_masked = cv2.resize(masked_og, (int(masked_og.shape[1] * scale), int(masked_og.shape[0] * scale)))
          else:
             cur_template = og_template
             cur_template_masked = masked_og

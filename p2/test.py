@@ -10,7 +10,7 @@ from visualize import *
 from hw2 import *
 import cv2 as cv
 
-easy_img = load_image("./data/easy/003.jpg")
+#easy_img = load_image("./data/easy/003.jpg")
 # xs, ys, scores = find_interest_points(img)
 
 # extract_features(img, xs, ys)
@@ -81,7 +81,7 @@ def parse_data(file_name):
     template_masks = [data > 0  for data in template_masks]
     return template_images, template_masks, test_images, test_images_target
 
-template_images, template_masks, test_images, test_images_targets = parse_data('data_cup.mat')
+template_images, template_masks, test_images, test_images_targets = parse_data('data_car.mat')
 
 img0 = template_images[1]
 img0_mask = template_masks[1]
@@ -145,9 +145,9 @@ img1_target = test_images_targets[6]
 
 # feats0 = extract_features(img0, xs0, ys0, 1.0)
 # feats1 = extract_features(img1, xs1, ys1, 1.0)
-xs1, ys1, scores1 = find_interest_points(img0, 200, 1.0, img0_mask)
-plot_interest_points(img0, xs1, ys1, scores1)
-plt.show()
+# xs1, ys1, scores1 = find_interest_points(img0, 200, 1.0, img0_mask)
+# plot_interest_points(img0, xs1, ys1, scores1)
+# plt.show()
 # pred_bbox = object_detection(template_images, template_masks, img1, multi_scale = False)
 # display_bbox(img1, pred_bbox, img1_target)
 # #plt.show(block = False)
@@ -155,17 +155,17 @@ plt.show()
 # print(gaussian_1d(2.1
 #                   ))
 
-# for data_name in ['data_car']:
-#     template_images, template_masks, test_images, test_images_targets = \
-#                                         parse_data(data_name + '.mat')
-#     iou_list = []
-#     time_list = []
-#     for i, (test_img, test_img_target_box) in enumerate(zip(test_images, test_images_targets)):
-#         t1 = time.time()
-#         pred_bbox = object_detection(template_images, template_masks, test_img)
-#         t2 = time.time()
-#         iou = compute_iou(pred_bbox, test_img_target_box)
-#         print('{}th {} image IOU {}'.format(i, data_name, iou))
-#         iou_list.append(iou)
-#         time_list.append(t2 - t1)
-#     print('class {}, average IOU {}, total running time {}s'.format(data_name, np.array(iou_list).mean(), np.array(time_list).sum()))
+for data_name in ['data_cup']:
+    template_images, template_masks, test_images, test_images_targets = \
+                                        parse_data(data_name + '.mat')
+    iou_list = []
+    time_list = []
+    for i, (test_img, test_img_target_box) in enumerate(zip(test_images, test_images_targets)):
+        t1 = time.time()
+        pred_bbox = object_detection(template_images, template_masks, test_img, multi_scale= True)
+        t2 = time.time()
+        iou = compute_iou(pred_bbox, test_img_target_box)
+        print('{}th {} image IOU {}'.format(i, data_name, iou))
+        iou_list.append(iou)
+        time_list.append(t2 - t1)
+    print('class {}, average IOU {}, total running time {}s'.format(data_name, np.array(iou_list).mean(), np.array(time_list).sum()))
